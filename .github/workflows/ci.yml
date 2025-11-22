@@ -1,4 +1,4 @@
-name: Build and Push Docker Image (Simple)
+name: Build and Push Docker Image
 
 on:
   push:
@@ -51,6 +51,29 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
+      - name: Make package public
+        run: |
+          # Get package versions and make them public
+          PACKAGE_NAME="kubernetesdemoapp"
+          
+          # Get all version IDs for this package
+          VERSION_IDS=$(curl -s -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/users/${{ github.actor }}/packages/container/${PACKAGE_NAME}/versions" \
+            | jq -r '.[].id')
+          
+          # Make each version public
+          for VERSION_ID in $VERSION_IDS; do
+            echo "Making version $VERSION_ID public..."
+            curl -X PATCH \
+              -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/users/${{ github.actor }}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+              -d '{"visibility":"public"}'
+          done
+          
+          echo "✅ Package visibility set to public"
+
       - name: Summary
         run: |
           echo "✅ Image pushed successfully!" >> $GITHUB_STEP_SUMMARY
@@ -60,3 +83,5 @@ jobs:
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Visibility:** Public 🌐" >> $GITHUB_STEP_SUMMARY
