@@ -53,23 +53,47 @@ jobs:
         run: |
           # Get package versions and make them public
           PACKAGE_NAME="kubernetesdemoapp"
-          
-          # Get all version IDs for this package
+          OWNER="${{ github.repository_owner }}"
+
+          # Get all version IDs for this package (repository-owned)
           VERSION_IDS=$(curl -s -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/users/${{ github.actor }}/packages/container/${PACKAGE_NAME}/versions" \
+            "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
             | jq -r '.[].id')
-          
+
+          # If no versions found (might be user package instead), try user endpoint
+          if [ -z "$VERSION_IDS" ]; then
+            echo "No versions found in org endpoint, trying user endpoint..."
+            VERSION_IDS=$(curl -s -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              | jq -r '.[].id')
+          fi
+
           # Make each version public
           for VERSION_ID in $VERSION_IDS; do
             echo "Making version $VERSION_ID public..."
-            curl -X PATCH \
+
+            # Try org endpoint first
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
               -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/users/${{ github.actor }}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
-              -d '{"visibility":"public"}'
+              "https://api.github.com/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+              -d '{"visibility":"public"}')
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+            # If org endpoint fails, try user endpoint
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "Org endpoint failed, trying user endpoint..."
+              curl -X PATCH \
+                -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+                -d '{"visibility":"public"}'
+            fi
           done
-          
+
           echo "✅ Package visibility set to public"
 
       - name: Summary
