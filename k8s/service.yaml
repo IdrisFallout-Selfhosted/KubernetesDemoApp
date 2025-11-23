@@ -10,8 +10,6 @@ spec:
   selector:
     app: kubernetesdemoapp
   ports:
-    - name: http
-      protocol: TCP
+    - protocol: TCP
       port: 80
       targetPort: 5000
-      nodePort: 5000
