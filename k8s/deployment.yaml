@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: kubernetesdemoapp
-        image: ghcr.io/idrisfallout/kubernetesdemoapp:latest
+        image: ghcr.io/idrisfallout/kubernetesdemoapp:v1.0.2
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
