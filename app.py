@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello_world():  # put application's code here
-    return 'Hello World from Kubernetes Demo App3!'
+    return 'Hello World from Kubernetes Demo App4!'
 
 @app.route('/health')
 def health():
